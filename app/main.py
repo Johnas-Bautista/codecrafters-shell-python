@@ -42,7 +42,7 @@ def commands(command, *args):
         "type": lambda cmd, *x: 
                 print(f"{cmd} is a shell builtin"
                       if cmd in COMMANDS else 
-                      f"{" ".join([cmd] + list(x))}: command not found"),     
+                      f"{" ".join([cmd] + list(x))}: not found"),     
     }
     
     if command in COMMANDS:
