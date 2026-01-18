@@ -1,5 +1,21 @@
 import sys
-
+# COMMANDS = {
+#     "exit": {
+#         "meaning": " is a command to exit the shell",
+#         "comm": lambda code=0, *args: sys.exit(int(code))              
+#     },
+#     "echo": {
+#         "meaning": " is a command for displaying strings", 
+#         "comm": lambda *x: print(" ".join(x))
+#     },
+#     "type": {
+#         "meaning": " is a command to describe a command",
+#         "comm": lambda cmd, *x: 
+#             print(cmd + COMMANDS[cmd]["meaning"]
+#                     if cmd in COMMANDS else 
+#                     f"{" ".join([cmd] + list(x))}: command not found")
+#     },     
+# }
 
 def main():
     # TODO: Uncomment the code below to pass the first stage
@@ -23,6 +39,10 @@ def commands(command, *args):
     COMMANDS = {
         "exit": lambda code=0, *args: sys.exit(int(code)),
         "echo": lambda *x: print(" ".join(x)),
+        "type": lambda cmd, *x: 
+                print(f"{cmd} is a shell builtin"
+                      if cmd in COMMANDS else 
+                      f"{" ".join([cmd] + list(x))}: command not found"),     
     }
     
     if command in COMMANDS:
