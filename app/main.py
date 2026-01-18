@@ -1,4 +1,5 @@
-import sys
+import sys, shutil
+from pathlib import Path
 # COMMANDS = {
 #     "exit": {
 #         "meaning": " is a command to exit the shell",
@@ -29,29 +30,38 @@ def main():
         command = user_input[0]
         args = user_input[1:]
         
-        result = commands(command, *args)
-        if result is False: 
-            print(f"{command}: command not found")
+        commands(command, *args)  
 
-
-
+def find_executable_path(command_name): 
+    executable_path_str = shutil.which(command_name)
+    
+    if executable_path_str:
+        return Path(executable_path_str)
+    else:
+        return None
+    
 def commands(command, *args):
-    COMMANDS = {
+    COMMANDS_BUILTIN = {
         "exit": lambda code=0, *args: sys.exit(int(code)),
-        "echo": lambda *x: print(" ".join(x)),
-        "type": lambda cmd, *x: 
-                print(f"{cmd} is a shell builtin"
-                      if cmd in COMMANDS else 
-                      f"{" ".join([cmd] + list(x))}: not found"),     
+        "echo": lambda *x: print(" ".join(x)),  
     }
     
-    if command in COMMANDS:
-        COMMANDS[command](*args)
+    if command in COMMANDS_BUILTIN:
+        COMMANDS_BUILTIN[command](*args)
         return True
-    else:
-        return False
-        
     
+    elif command == "type":
+        target = ''.join(args)
+        if target in COMMANDS_BUILTIN or target == "type":
+            print(f"{target} is a shell builtin")
+            
+        elif (path := find_executable_path(target)):
+            print(f"{target} is {path}")
+        
+        else:
+            print(f"{target}: not found")
+    else:
+        print(f"{command}: command not found")
     
 if __name__ == "__main__":
     main()
