@@ -1,22 +1,5 @@
-import sys, shutil
+import sys, shutil, subprocess
 from pathlib import Path
-# COMMANDS = {
-#     "exit": {
-#         "meaning": " is a command to exit the shell",
-#         "comm": lambda code=0, *args: sys.exit(int(code))              
-#     },
-#     "echo": {
-#         "meaning": " is a command for displaying strings", 
-#         "comm": lambda *x: print(" ".join(x))
-#     },
-#     "type": {
-#         "meaning": " is a command to describe a command",
-#         "comm": lambda cmd, *x: 
-#             print(cmd + COMMANDS[cmd]["meaning"]
-#                     if cmd in COMMANDS else 
-#                     f"{" ".join([cmd] + list(x))}: command not found")
-#     },     
-# }
 
 def main():
     # TODO: Uncomment the code below to pass the first stage
@@ -51,7 +34,8 @@ def commands(command, *args):
         return True
     
     elif command == "type":
-        target = ''.join(args)
+        # target = ''.join(args)
+        target = args[0]
         if target in COMMANDS_BUILTIN or target == "type":
             print(f"{target} is a shell builtin")
             
@@ -60,6 +44,13 @@ def commands(command, *args):
         
         else:
             print(f"{target}: not found")
+    elif (find_executable_path(command)):
+        result = subprocess.run(
+            [command] + list(args),
+            capture_output=True,
+            text=True
+        )
+        print(result.stdout.strip())
     else:
         print(f"{command}: command not found")
     
