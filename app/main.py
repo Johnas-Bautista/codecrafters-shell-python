@@ -23,10 +23,15 @@ def find_executable_path(command_name):
     else:
         return None
     
+def find_current_path(command_name):
+    
+    pass
+    
 def commands(command, *args):
     COMMANDS_BUILTIN = {
         "exit": lambda code=0, *args: sys.exit(int(code)),
         "echo": lambda *x: print(" ".join(x)),  
+        "pwd": lambda : print(Path.cwd())
     }
     
     if command in COMMANDS_BUILTIN:
