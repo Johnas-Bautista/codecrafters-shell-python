@@ -24,9 +24,15 @@ def find_executable_path(command_name):
         return None
     
 def change_directory(path):
-    if Path.exists(path):
-        pth = Path(path)
-        return os.chdir(pth)
+    if path == "~":
+        os.chdir(Path.home())
+        return
+    pth = Path(path)
+    if not pth.is_absolute():
+        pth = (Path.cwd() / pth).resolve()
+
+    if pth.exists() and pth.is_dir():
+        os.chdir(pth)
     else:
         print(f"cd: {path}: No such file or directory")
     
