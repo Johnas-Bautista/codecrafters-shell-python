@@ -1,4 +1,4 @@
-import sys, shutil, subprocess
+import sys, shutil, subprocess, os
 from pathlib import Path
 
 def main():
@@ -23,15 +23,19 @@ def find_executable_path(command_name):
     else:
         return None
     
-def find_current_path(command_name):
-    
-    pass
+def change_directory(path):
+    if Path.exists(path):
+        pth = Path(path)
+        return os.chdir(pth)
+    else:
+        print(f"cd: {path}: No such file or directory")
     
 def commands(command, *args):
     COMMANDS_BUILTIN = {
         "exit": lambda code=0, *args: sys.exit(int(code)),
         "echo": lambda *x: print(" ".join(x)),  
-        "pwd": lambda : print(Path.cwd())
+        "pwd": lambda : print(Path.cwd()),
+        "cd": lambda path: change_directory(path)
     }
     
     if command in COMMANDS_BUILTIN:
