@@ -12,8 +12,31 @@ def main():
             
         command = user_input[0]
         args = user_input[1:]
-        
+        if ">" in user_input or "1>" in user_input:
+            if ">" in user_input:
+                i = user_input.index(">")
+            else:
+                i = user_input.index("1>")
+
+            command = user_input[0]
+            args = user_input[1:i]
+            outfile = user_input[i + 1]
+
+            result = subprocess.run(
+                [command] + args,
+                capture_output=True,
+                text=True
+            )
+            if result.stderr:
+                print(result.stderr, end="")
+
+            Path(outfile).write_text(result.stdout)
+            continue
         commands(command, *args)  
+        
+# def create_pre_valued_files(*command):
+#     if ">" in command or "1>" in command:
+#         os.system(command_inp)
 
 def find_executable_path(command_name): 
     executable_path_str = shutil.which(command_name)
