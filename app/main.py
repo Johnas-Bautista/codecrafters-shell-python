@@ -12,10 +12,21 @@ def main():
             
         command = user_input[0]
         args = user_input[1:]
-        if ">" in user_input or "1>" in user_input:
-            if ">" in user_input:
+        
+        # Check for redirection operators
+        if ">" in user_input or "1>" in user_input or "2>" in user_input:
+            redirect_op = None
+            i = None
+            
+            # Find which redirection operator is used
+            if "2>" in user_input:
+                redirect_op = "2>"
+                i = user_input.index("2>")
+            elif ">" in user_input:
+                redirect_op = ">"
                 i = user_input.index(">")
-            else:
+            elif "1>" in user_input:
+                redirect_op = "1>"
                 i = user_input.index("1>")
 
             command = user_input[0]
@@ -27,12 +38,23 @@ def main():
                 capture_output=True,
                 text=True
             )
-            if result.stderr:
-                print(result.stderr, end="")
+            
+            # Redirect based on operator type
+            if redirect_op in (">", "1>"):
+                # Redirect stdout to file
+                Path(outfile).write_text(result.stdout)
+                # Print stderr to terminal
+                if result.stderr:
+                    print(result.stderr, end="")
+            elif redirect_op == "2>":
+                # Redirect stderr to file
+                Path(outfile).write_text(result.stderr)
+                # Print stdout to terminal
+                if result.stdout:
+                    print(result.stdout, end="")
 
-            Path(outfile).write_text(result.stdout)
-            continue
-        commands(command, *args)  
+            continue 
+        commands(command, *args) 
         
 # def create_pre_valued_files(*command):
 #     if ">" in command or "1>" in command:
