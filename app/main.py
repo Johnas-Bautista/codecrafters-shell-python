@@ -14,7 +14,7 @@ def main():
         args = user_input[1:]
         
         # Check for redirection operators
-        if ">" in user_input or "1>" in user_input or "2>" in user_input or ">>" in user_input or "1>>" in user_input:
+        if ">" in user_input or "1>" in user_input or "2>" in user_input or ">>" in user_input or "1>>" in user_input or "2>>" in user_input:
             redirect_op = None
             i = None
             
@@ -23,9 +23,10 @@ def main():
                 redirect_op = ">>" if ">>" in user_input else "1>>"
                 i = user_input.index(redirect_op) 
                 mode = 'a'
-            elif "2>" in user_input:
-                redirect_op = "2>"
-                i = user_input.index("2>")
+            elif "2>" in user_input or "2>>" in user_input:
+                redirect_op = "2>" if "2>" in user_input else "2>>"
+                i = user_input.index(redirect_op)
+                mode = 'w' if "2>" in user_input else 'a'
             elif ">" in user_input or "1>" in user_input:
                 redirect_op = ">" if ">" in user_input else "1>"
                 i = user_input.index(redirect_op)
@@ -45,8 +46,9 @@ def main():
                     f.write(result.stdout)
                 if result.stderr:
                     print(result.stderr, end="")
-            elif redirect_op == "2>":
-                Path(file).write_text(result.stderr)
+            elif redirect_op in ("2>", "2>>"):
+                with open(file, mode) as f:
+                    f.write(result.stderr)
                 if result.stdout:
                     print(result.stdout, end="")
             continue 
