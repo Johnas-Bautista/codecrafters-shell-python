@@ -1,11 +1,11 @@
-import sys, shutil, subprocess, os
+import sys, shutil, subprocess, os,shlex
 from pathlib import Path
 
 def main():
     # TODO: Uncomment the code below to pass the first stage
     while True:
         sys.stdout.write("$ ")
-        user_input = input().split()
+        user_input = shlex.split(input())
         
         if not user_input:
             continue
@@ -27,7 +27,9 @@ def change_directory(path):
     if path == "~":
         os.chdir(Path.home())
         return
+    
     pth = Path(path)
+    
     if not pth.is_absolute():
         pth = (Path.cwd() / pth).resolve()
 
