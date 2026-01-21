@@ -14,45 +14,41 @@ def main():
         args = user_input[1:]
         
         # Check for redirection operators
-        if ">" in user_input or "1>" in user_input or "2>" in user_input:
+        if ">" in user_input or "1>" in user_input or "2>" in user_input or ">>" in user_input or "1>>" in user_input:
             redirect_op = None
             i = None
             
             # Find which redirection operator is used
-            if "2>" in user_input:
+            if ">>" in user_input or "1>>" in user_input:
+                redirect_op = ">>" if ">>" in user_input else "1>>"
+                i = user_input.index(redirect_op) 
+                mode = 'a'
+            elif "2>" in user_input:
                 redirect_op = "2>"
                 i = user_input.index("2>")
-            elif ">" in user_input:
-                redirect_op = ">"
-                i = user_input.index(">")
-            elif "1>" in user_input:
-                redirect_op = "1>"
-                i = user_input.index("1>")
+            elif ">" in user_input or "1>" in user_input:
+                redirect_op = ">" if ">" in user_input else "1>"
+                i = user_input.index(redirect_op)
+                mode = 'w'
 
             command = user_input[0]
             args = user_input[1:i]
-            outfile = user_input[i + 1]
+            file = user_input[i + 1]
 
             result = subprocess.run(
                 [command] + args,
                 capture_output=True,
                 text=True
             )
-            
-            # Redirect based on operator type
-            if redirect_op in (">", "1>"):
-                # Redirect stdout to file
-                Path(outfile).write_text(result.stdout)
-                # Print stderr to terminal
+            if redirect_op in (">", "1>", ">>", "1>>"):
+                with open(file, mode) as f:
+                    f.write(result.stdout)
                 if result.stderr:
                     print(result.stderr, end="")
             elif redirect_op == "2>":
-                # Redirect stderr to file
-                Path(outfile).write_text(result.stderr)
-                # Print stdout to terminal
+                Path(file).write_text(result.stderr)
                 if result.stdout:
                     print(result.stdout, end="")
-
             continue 
         commands(command, *args) 
         
