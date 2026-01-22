@@ -9,7 +9,27 @@ COMMANDS_BUILTIN = {
 }
 
 def completer(text, state):
-    options = [cmd + ' ' for cmd in COMMANDS_BUILTIN if cmd.startswith(text)]
+    options = []
+    
+    # First, add built-in commands that match
+    options.extend([cmd + ' ' for cmd in COMMANDS_BUILTIN if cmd.startswith(text)])
+    
+    # Then, add executable commands from PATH
+    path_dirs = os.environ.get('PATH', '').split(os.pathsep)
+    for path_dir in path_dirs:
+        try:
+            dir_path = Path(path_dir)
+            if dir_path.exists() and dir_path.is_dir():
+                for file in dir_path.iterdir():
+                    if file.is_file() and os.access(file, os.X_OK):
+                        if file.name.startswith(text) and file.name not in options:
+                            options.append(file.name + ' ')
+        except (PermissionError, OSError):
+            continue
+    
+    # Remove duplicates and sort
+    options = sorted(set(options))
+    
     if state < len(options):
         return options[state]
     return None
