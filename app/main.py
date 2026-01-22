@@ -1,11 +1,29 @@
-import sys, shutil, subprocess, os,shlex
+import sys, shutil, subprocess, os,shlex, readline
 from pathlib import Path
+
+COMMANDS_BUILTIN = {
+    "exit": lambda code=0, *args: sys.exit(int(code)),
+    "echo": lambda *x: print(" ".join(x)),  
+    "pwd": lambda : print(Path.cwd()),
+    "cd": lambda path: change_directory(path)
+}
+
+def completer(text, state):
+    options = [cmd + ' ' for cmd in COMMANDS_BUILTIN if cmd.startswith(text)]
+    if state < len(options):
+        return options[state]
+    return None
+
+readline.parse_and_bind("tab: complete")
+readline.set_completer(completer)
 
 def main():
     # TODO: Uncomment the code below to pass the first stage
     while True:
-        sys.stdout.write("$ ")
-        user_input = shlex.split(input())
+        try:
+            user_input = shlex.split(input("$ "))  # Changed this line
+        except EOFError:
+            break
         
         if not user_input:
             continue
@@ -13,50 +31,7 @@ def main():
         command = user_input[0]
         args = user_input[1:]
         
-        # Check for redirection operators
-        if ">" in user_input or "1>" in user_input or "2>" in user_input or ">>" in user_input or "1>>" in user_input or "2>>" in user_input:
-            redirect_op = None
-            i = None
-            
-            # Find which redirection operator is used
-            if ">>" in user_input or "1>>" in user_input:
-                redirect_op = ">>" if ">>" in user_input else "1>>"
-                i = user_input.index(redirect_op) 
-                mode = 'a'
-            elif "2>" in user_input or "2>>" in user_input:
-                redirect_op = "2>" if "2>" in user_input else "2>>"
-                i = user_input.index(redirect_op)
-                mode = 'w' if "2>" in user_input else 'a'
-            elif ">" in user_input or "1>" in user_input:
-                redirect_op = ">" if ">" in user_input else "1>"
-                i = user_input.index(redirect_op)
-                mode = 'w'
-
-            command = user_input[0]
-            args = user_input[1:i]
-            file = user_input[i + 1]
-
-            result = subprocess.run(
-                [command] + args,
-                capture_output=True,
-                text=True
-            )
-            if redirect_op in (">", "1>", ">>", "1>>"):
-                with open(file, mode) as f:
-                    f.write(result.stdout)
-                if result.stderr:
-                    print(result.stderr, end="")
-            elif redirect_op in ("2>", "2>>"):
-                with open(file, mode) as f:
-                    f.write(result.stderr)
-                if result.stdout:
-                    print(result.stdout, end="")
-            continue 
         commands(command, *args) 
-        
-# def create_pre_valued_files(*command):
-#     if ">" in command or "1>" in command:
-#         os.system(command_inp)
 
 def find_executable_path(command_name): 
     executable_path_str = shutil.which(command_name)
@@ -82,12 +57,44 @@ def change_directory(path):
         print(f"cd: {path}: No such file or directory")
     
 def commands(command, *args):
-    COMMANDS_BUILTIN = {
-        "exit": lambda code=0, *args: sys.exit(int(code)),
-        "echo": lambda *x: print(" ".join(x)),  
-        "pwd": lambda : print(Path.cwd()),
-        "cd": lambda path: change_directory(path)
-    }
+    if ">" in args or "1>" in args or "2>" in args or ">>" in args or "1>>" in args or "2>>" in args:
+        redirect_op = None
+        i = None
+        
+        # Find which redirection operator is used
+        if ">>" in args or "1>>" in args:
+            redirect_op = ">>" if ">>" in args else "1>>"
+            i = args.index(redirect_op) 
+            mode = 'a'
+        elif "2>" in args or "2>>" in args:
+            redirect_op = "2>" if "2>" in args else "2>>"
+            i = args.index(redirect_op)
+            mode = 'w' if "2>" in args else 'a'
+        elif ">" in args or "1>" in args:
+            redirect_op = ">" if ">" in args else "1>"
+            i = args.index(redirect_op)
+            mode = 'w'
+
+        arg = args[0:i]
+        file = args[i + 1]
+
+        result = subprocess.run(
+            [command] + list(arg),
+            capture_output=True,
+            text=True
+        )
+        
+        if redirect_op in (">", "1>", ">>", "1>>"):
+            with open(file, mode) as f:
+                f.write(result.stdout)
+            if result.stderr:
+                print(result.stderr, end="")
+        elif redirect_op in ("2>", "2>>"):
+            with open(file, mode) as f:
+                f.write(result.stderr)
+            if result.stdout:
+                print(result.stdout, end="")
+        return
     
     if command in COMMANDS_BUILTIN:
         COMMANDS_BUILTIN[command](*args)
