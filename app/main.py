@@ -1,67 +1,102 @@
-import sys, shutil, subprocess, os,shlex, readline
+import sys, shutil, subprocess, os,shlex, readline, io
 from pathlib import Path
+from contextlib import redirect_stdout
 
 COMMANDS_BUILTIN = {
-    "exit": lambda code=0, *args: sys.exit(int(code)),  # Removed trailing space from keys
+    "exit": lambda code=0, *args: sys.exit(int(code)), 
     "echo": lambda *x: print(" ".join(x)),  
     "pwd": lambda : print(Path.cwd()),
     "cd": lambda path: change_directory(path)
 }
 
-def completer(text, state):
-    options = []
-    
-    # First, add built-in commands that match
-    options.extend([cmd for cmd in COMMANDS_BUILTIN if cmd.startswith(text)])
-    
-    # Then, add executable commands from PATH
-    path_dirs = os.environ.get('PATH', '').split(os.pathsep)
-    for path_dir in path_dirs:
-        try:
-            dir_path = Path(path_dir)
-            if dir_path.exists() and dir_path.is_dir():
-                for file in dir_path.iterdir():
-                    if file.is_file() and os.access(file, os.X_OK):
-                        if file.name.startswith(text) and file.name not in options:
-                            options.append(file.name)
-        except (PermissionError, OSError):
-            continue
-    
-    options = sorted(set(options))
-    
-    if state < len(options):
-        # If there's only one option, add a space after it
-        if len(options) == 1:
-            return options[state] + ' '
-        return options[state]
-    return None
 
-def display_matches(substitution, matches, longest_match_length):
-    """Custom display function to show completions horizontally with 2 spaces"""
-    print()
-    print('  '.join(matches))  # Join with exactly 2 spaces
-    print(f"$ {readline.get_line_buffer()}", end='', flush=True)
-
-readline.parse_and_bind("tab: complete")
-readline.set_completer(completer)
-readline.set_completion_display_matches_hook(display_matches)
-
-def main():
-    # TODO: Uncomment the code below to pass the first stage
-    while True:
-        try:
-            user_input = shlex.split(input("$ "))  # Changed this line
-        except EOFError:
-            break
+def handle_pipeline(user_input):
+    """Handle piped commands using subprocess.Popen"""
+    # Split commands by pipe
+    commands_list = []
+    current_cmd = []
+    
+    for token in user_input:
+        if token == "|":
+            if current_cmd:
+                commands_list.append(current_cmd)
+                current_cmd = []
+        else:
+            current_cmd.append(token)
+    
+    if current_cmd:
+        commands_list.append(current_cmd)
+    
+    # Create processes
+    processes = []
+    
+    for i, cmd_parts in enumerate(commands_list):
+        cmd = cmd_parts[0]
+        args = cmd_parts[1:] if len(cmd_parts) > 1 else []
         
-        if not user_input:
-            continue
+        # Set stdin
+        if i == 0:
+            stdin = None
+        else:
+            stdin = processes[-1].stdout
+        
+        # Set stdout  
+        stdout = subprocess.PIPE
+        
+        # Start the process
+        try:
+            proc = subprocess.Popen(
+                [cmd] + args,
+                stdin=stdin,
+                stdout=stdout,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            processes.append(proc)
             
-        command = user_input[0]
-        args = user_input[1:]
-        
-        commands(command, *args) 
+            # IMPORTANT: Close the stdout in parent after passing to next process
+            # This allows the previous process to receive SIGPIPE when next process exits
+            if i > 0:
+                processes[i - 1].stdout.close()
+                
+        except FileNotFoundError:
+            print(f"{cmd}: command not found")
+            # Clean up any started processes
+            for p in processes:
+                p.terminate()
+            return
+    
+    # Get output from last process
+    if processes:
+        try:
+            last_proc = processes[-1]
+            try:
+                # Read output line-by-line (important for tail -f)
+                for line in last_proc.stdout:
+                    print(line, end='')
 
+                last_proc.wait()
+
+            finally:
+                # Terminate remaining processes
+                for proc in processes[:-1]:
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=0.1)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+
+        except KeyboardInterrupt:
+            # Handle Ctrl+C gracefully
+            for proc in processes:
+                proc.terminate()
+            raise
+        except BrokenPipeError:
+            # Handle broken pipe
+            for proc in processes:
+                proc.terminate()
+                
+                
 def find_executable_path(command_name): 
     executable_path_str = shutil.which(command_name)
     
@@ -149,6 +184,64 @@ def commands(command, *args):
         print(result.stdout.strip())
     else:
         print(f"{command}: command not found")
+
+def completer(text, state):
+    options = []
+    
+    # First, add built-in commands that match
+    options.extend([cmd for cmd in COMMANDS_BUILTIN if cmd.startswith(text)])
+    
+    # Then, add executable commands from PATH
+    path_dirs = os.environ.get('PATH', '').split(os.pathsep)
+    for path_dir in path_dirs:
+        try:
+            dir_path = Path(path_dir)
+            if dir_path.exists() and dir_path.is_dir():
+                for file in dir_path.iterdir():
+                    if file.is_file() and os.access(file, os.X_OK):
+                        if file.name.startswith(text) and file.name not in options:
+                            options.append(file.name)
+        except (PermissionError, OSError):
+            continue
+    
+    options = sorted(set(options))
+    
+    if state < len(options):
+        # If there's only one option, add a space after it
+        if len(options) == 1:
+            return options[state] + ' '
+        return options[state]
+    return None
+
+def display_matches(substitution, matches, longest_match_length):
+    """Custom display function to show completions horizontally with 2 spaces"""
+    print()
+    print('  '.join(matches))  # Join with exactly 2 spaces
+    print(f"$ {readline.get_line_buffer()}", end='', flush=True)
+
+readline.parse_and_bind("tab: complete")
+readline.set_completer(completer)
+readline.set_completion_display_matches_hook(display_matches)
+
+def main():
+    while True:
+        try:
+            user_input = shlex.split(input("$ "))
+        except EOFError:
+            break
+        
+        if not user_input:
+            continue
+        
+        # Check for pipe
+        if "|" in user_input:
+            handle_pipeline(user_input)
+        else:
+            command = user_input[0]
+            args = user_input[1:]
+            commands(command, *args)
+
+
     
 if __name__ == "__main__":
     main()
