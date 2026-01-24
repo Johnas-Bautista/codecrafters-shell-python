@@ -2,7 +2,7 @@ import sys, shutil, subprocess, os,shlex, readline
 from pathlib import Path
 
 COMMANDS_BUILTIN = {
-    "exit": lambda code=0, *args: sys.exit(int(code)),
+    "exit": lambda code=0, *args: sys.exit(int(code)),  # Removed trailing space from keys
     "echo": lambda *x: print(" ".join(x)),  
     "pwd": lambda : print(Path.cwd()),
     "cd": lambda path: change_directory(path)
@@ -12,7 +12,7 @@ def completer(text, state):
     options = []
     
     # First, add built-in commands that match
-    options.extend([cmd + ' ' for cmd in COMMANDS_BUILTIN if cmd.startswith(text)])
+    options.extend([cmd for cmd in COMMANDS_BUILTIN if cmd.startswith(text)])
     
     # Then, add executable commands from PATH
     path_dirs = os.environ.get('PATH', '').split(os.pathsep)
@@ -23,19 +23,28 @@ def completer(text, state):
                 for file in dir_path.iterdir():
                     if file.is_file() and os.access(file, os.X_OK):
                         if file.name.startswith(text) and file.name not in options:
-                            options.append(file.name + ' ')
+                            options.append(file.name)
         except (PermissionError, OSError):
             continue
     
-    # Remove duplicates and sort
     options = sorted(set(options))
     
     if state < len(options):
+        # If there's only one option, add a space after it
+        if len(options) == 1:
+            return options[state] + ' '
         return options[state]
     return None
 
+def display_matches(substitution, matches, longest_match_length):
+    """Custom display function to show completions horizontally with 2 spaces"""
+    print()
+    print('  '.join(matches))  # Join with exactly 2 spaces
+    print(f"$ {readline.get_line_buffer()}", end='', flush=True)
+
 readline.parse_and_bind("tab: complete")
 readline.set_completer(completer)
+readline.set_completion_display_matches_hook(display_matches)
 
 def main():
     # TODO: Uncomment the code below to pass the first stage
