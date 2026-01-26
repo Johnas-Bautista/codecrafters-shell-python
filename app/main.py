@@ -10,92 +10,117 @@ COMMANDS_BUILTIN = {
 }
 
 
+def builtin_echo(args, stdin, stdout):
+    print(" ".join(args), file=stdout)
+
+def builtin_pwd(args, stdin, stdout):
+    print(Path.cwd(), file=stdout)
+
+def builtin_type(args, stdin, stdout):
+    target = args[0]
+    if target in COMMANDS_BUILTIN or target == "type":
+        print(f"{target} is a shell builtin", file=stdout)
+    elif (path := find_executable_path(target)):
+        print(f"{target} is {path}", file=stdout)
+    else:
+        print(f"{target}: not found", file=stdout)
+
+
 def handle_pipeline(user_input):
-    """Handle piped commands using subprocess.Popen"""
-    # Split commands by pipe
+    final_builtin_output = None
     commands_list = []
-    current_cmd = []
-    
+    current = []
+
     for token in user_input:
         if token == "|":
-            if current_cmd:
-                commands_list.append(current_cmd)
-                current_cmd = []
+            commands_list.append(current)
+            current = []
         else:
-            current_cmd.append(token)
-    
-    if current_cmd:
-        commands_list.append(current_cmd)
-    
-    # Create processes
+            current.append(token)
+
+    if current:
+        commands_list.append(current)
+
+    input_data = None
     processes = []
-    
+    prev_proc = None
+
     for i, cmd_parts in enumerate(commands_list):
         cmd = cmd_parts[0]
-        args = cmd_parts[1:] if len(cmd_parts) > 1 else []
-        
-        # Set stdin
-        if i == 0:
-            stdin = None
-        else:
-            stdin = processes[-1].stdout
-        
-        # Set stdout  
-        stdout = subprocess.PIPE
-        
-        # Start the process
-        try:
-            proc = subprocess.Popen(
-                [cmd] + args,
-                stdin=stdin,
-                stdout=stdout,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            processes.append(proc)
+        args = cmd_parts[1:]
+
+        next_is_builtin = (
+            i + 1 < len(commands_list) and
+            commands_list[i + 1][0] in PIPELINE_BUILTINS
+        )
+
+        # ---------- BUILTIN ----------
+        if cmd in PIPELINE_BUILTINS:
+            stdin = io.StringIO(input_data) if input_data else io.StringIO()
+            stdout = io.StringIO()
+
+            PIPELINE_BUILTINS[cmd](args, stdin, stdout)
+            output = stdout.getvalue()
+
+            if i == len(commands_list) - 1:
+                final_builtin_output = output
+            else:
+                input_data = output
             
-            # IMPORTANT: Close the stdout in parent after passing to next process
-            # This allows the previous process to receive SIGPIPE when next process exits
-            if i > 0:
-                processes[i - 1].stdout.close()
-                
-        except FileNotFoundError:
-            print(f"{cmd}: command not found")
-            # Clean up any started processes
-            for p in processes:
-                p.terminate()
+            prev_proc = None
+
+        # ---------- FORBIDDEN BUILTIN ----------
+        elif cmd in ("cd", "exit"):
+            print(f"{cmd}: not allowed in pipeline")
             return
-    
-    # Get output from last process
-    if processes:
-        try:
-            last_proc = processes[-1]
+
+        # ---------- EXTERNAL ----------
+        else:
             try:
-                # Read output line-by-line (important for tail -f)
-                for line in last_proc.stdout:
-                    print(line, end='')
-
-                last_proc.wait()
-
-            finally:
-                # Terminate remaining processes
-                for proc in processes[:-1]:
-                    proc.terminate()
-                    try:
-                        proc.wait(timeout=0.1)
-                    except subprocess.TimeoutExpired:
-                        proc.kill()
-
-        except KeyboardInterrupt:
-            # Handle Ctrl+C gracefully
-            for proc in processes:
-                proc.terminate()
-            raise
-        except BrokenPipeError:
-            # Handle broken pipe
-            for proc in processes:
-                proc.terminate()
+                # Determine stdin source
+                if input_data:
+                    stdin_source = subprocess.PIPE
+                elif prev_proc is not None:
+                    stdin_source = prev_proc.stdout
+                else:
+                    stdin_source = None
                 
+                proc = subprocess.Popen(
+                    [cmd] + args,
+                    stdin=stdin_source,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+                processes.append(proc)
+                
+                # Close the previous stdout in parent to allow proper piping
+                if prev_proc is not None and prev_proc.stdout:
+                    prev_proc.stdout.close()
+
+                if input_data:
+                    proc.stdin.write(input_data)
+                    proc.stdin.close()
+                    input_data = None
+
+                if i == len(commands_list) - 1:
+                    for line in proc.stdout:
+                        print(line, end="")
+                elif next_is_builtin:
+                    input_data = proc.stdout.read()
+                
+                prev_proc = proc
+
+            except FileNotFoundError:
+                print(f"{cmd}: command not found")
+                return
+
+    if final_builtin_output is not None:
+        print(final_builtin_output, end="")
+
+    for p in processes:
+        p.wait()
+
                 
 def find_executable_path(command_name): 
     executable_path_str = shutil.which(command_name)
@@ -222,6 +247,12 @@ def display_matches(substitution, matches, longest_match_length):
 readline.parse_and_bind("tab: complete")
 readline.set_completer(completer)
 readline.set_completion_display_matches_hook(display_matches)
+
+PIPELINE_BUILTINS = {
+    "echo": builtin_echo,
+    "pwd": builtin_pwd,
+    "type": builtin_type,
+}
 
 def main():
     while True:
