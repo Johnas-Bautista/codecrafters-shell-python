@@ -8,14 +8,24 @@ COMMANDS_BUILTIN = {
     "echo": lambda *x: print(" ".join(x)),  
     "pwd": lambda : print(Path.cwd()),
     "cd": lambda path: change_directory(path),
-    "history": lambda: history_list(history)
+    "history": lambda *args: history_list(history, *args)
 }
 
-def history_list(history):
-    i = 1
-    for h in history:
+def history_list(history, *args):
+    if args and args[0]:
+        try:
+            count = int(args[0])
+            items = history[-count:] if count > 0 else history
+            start_index = len(history) - len(items) + 1
+        except (ValueError, IndexError):
+            items = history
+            start_index = 1
+    else:
+        items = history
+        start_index = 1
+    
+    for i, h in enumerate(items, start=start_index):
         print(f"{i} {h}")
-        i+=1
 
 def builtin_echo(args, stdin, stdout):
     print(" ".join(args), file=stdout)
