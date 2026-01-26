@@ -2,14 +2,20 @@ import sys, shutil, subprocess, os,shlex, readline, io
 from pathlib import Path
 from contextlib import redirect_stdout
 
+history = []
 COMMANDS_BUILTIN = {
     "exit": lambda code=0, *args: sys.exit(int(code)), 
     "echo": lambda *x: print(" ".join(x)),  
     "pwd": lambda : print(Path.cwd()),
     "cd": lambda path: change_directory(path),
-    "history": lambda : print()
+    "history": lambda: history_list(history)
 }
 
+def history_list(history):
+    i = 1
+    for h in history:
+        print(f"{i} {h}")
+        i+=1
 
 def builtin_echo(args, stdin, stdout):
     print(" ".join(args), file=stdout)
@@ -105,10 +111,15 @@ def handle_pipeline(user_input):
                     input_data = None
 
                 if i == len(commands_list) - 1:
+                    # Last command in pipeline - read and print output
                     for line in proc.stdout:
                         print(line, end="")
+                    proc.wait()
                 elif next_is_builtin:
                     input_data = proc.stdout.read()
+                else:
+                    # Intermediate external command - just track it
+                    pass
                 
                 prev_proc = proc
 
@@ -257,7 +268,9 @@ PIPELINE_BUILTINS = {
 def main():
     while True:
         try:
-            user_input = shlex.split(input("$ "))
+            raw_input = input("$ ")
+            history.append(raw_input)
+            user_input = shlex.split(raw_input)
         except EOFError:
             break
         
