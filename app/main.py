@@ -6,7 +6,8 @@ COMMANDS_BUILTIN = {
     "exit": lambda code=0, *args: sys.exit(int(code)), 
     "echo": lambda *x: print(" ".join(x)),  
     "pwd": lambda : print(Path.cwd()),
-    "cd": lambda path: change_directory(path)
+    "cd": lambda path: change_directory(path),
+    "history": lambda : print()
 }
 
 
@@ -239,7 +240,6 @@ def completer(text, state):
     return None
 
 def display_matches(substitution, matches, longest_match_length):
-    """Custom display function to show completions horizontally with 2 spaces"""
     print()
     print('  '.join(matches))  # Join with exactly 2 spaces
     print(f"$ {readline.get_line_buffer()}", end='', flush=True)
