@@ -12,6 +12,25 @@ COMMANDS_BUILTIN = {
 }
 
 def history_list(history, *args):
+    # Handle -r flag for reading from file
+    if args and args[0] == "-r":
+        if len(args) > 1:
+            filepath = args[1]
+            try:
+                with open(filepath, 'r') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line:  # Only add non-empty lines
+                            history.append(line)
+            except FileNotFoundError:
+                print(f"history: {filepath}: No such file or directory")
+            except Exception as e:
+                print(f"history: error reading file: {e}")
+        else:
+            print("history: -r option requires a filename argument")
+        return
+    
+    # Original functionality for displaying history
     if args and args[0]:
         try:
             count = int(args[0])
