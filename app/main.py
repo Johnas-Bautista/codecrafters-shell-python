@@ -3,6 +3,7 @@ from pathlib import Path
 from contextlib import redirect_stdout
 
 history = []
+history_file_positions = {}  # Track last written index for each file
 COMMANDS_BUILTIN = {
     "exit": lambda code=0, *args: sys.exit(int(code)), 
     "echo": lambda *x: print(" ".join(x)),  
@@ -40,6 +41,28 @@ def history_list(history, *args):
             except Exception as e:
                 print(f"history: error reading file: {e}")
         return
+    
+    if args and args[0] == "-a":
+        if len(args) > 1:
+            filepath = args[1]
+            try:
+                # Get the starting index (where we left off last time)
+                start_index = history_file_positions.get(filepath, 0)
+                
+                with open(filepath, 'a') as file:
+                    # Only write history items from start_index onwards
+                    for item in history[start_index:]:
+                        file.write(item + "\n")
+                
+                # Update the position to current history length
+                history_file_positions[filepath] = len(history)
+                
+            except FileNotFoundError:
+                print(f"history: {filepath}: No such file or directory")
+            except Exception as e:
+                print(f"history: error reading file: {e}")
+        return
+    
     # Original functionality for displaying history
     if args and args[0]:
         try:
