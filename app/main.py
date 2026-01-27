@@ -328,24 +328,47 @@ PIPELINE_BUILTINS = {
 }
 
 def main():
-    while True:
+    # Load history from HISTFILE if set
+    histfile = os.environ.get('HISTFILE')
+    if histfile and os.path.exists(histfile):
         try:
-            raw_input = input("$ ")
-            history.append(raw_input)
-            user_input = shlex.split(raw_input)
-        except EOFError:
-            break
-        
-        if not user_input:
-            continue
-        
-        # Check for pipe
-        if "|" in user_input:
-            handle_pipeline(user_input)
-        else:
-            command = user_input[0]
-            args = user_input[1:]
-            commands(command, *args)
+            with open(histfile, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        history.append(line)
+        except Exception:
+            pass  # Silently ignore errors loading history file
+    
+    try:
+        while True:
+            try:
+                raw_input = input("$ ")
+                history.append(raw_input)
+                user_input = shlex.split(raw_input)
+            except EOFError:
+                break
+            
+            if not user_input:
+                continue
+            
+            # Check for pipe
+            if "|" in user_input:
+                handle_pipeline(user_input)
+            else:
+                command = user_input[0]
+                args = user_input[1:]
+                commands(command, *args)
+    finally:
+        # Save history to HISTFILE on exit if set
+        histfile = os.environ.get('HISTFILE')
+        if histfile:
+            try:
+                with open(histfile, 'w') as f:
+                    for item in history:
+                        f.write(item + "\n")
+            except Exception:
+                pass  # Silently ignore errors saving history file
 
 
     
