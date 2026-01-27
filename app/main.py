@@ -26,10 +26,20 @@ def history_list(history, *args):
                 print(f"history: {filepath}: No such file or directory")
             except Exception as e:
                 print(f"history: error reading file: {e}")
-        else:
-            print("history: -r option requires a filename argument")
         return
     
+    if args and args[0] == "-w":
+        if len(args) > 1:
+            filepath = args[1]
+            try:
+                with open(filepath, 'w') as file:
+                    for item in history:
+                        file.write(item + "\n")
+            except FileNotFoundError:
+                print(f"history: {filepath}: No such file or directory")
+            except Exception as e:
+                print(f"history: error reading file: {e}")
+        return
     # Original functionality for displaying history
     if args and args[0]:
         try:
