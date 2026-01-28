@@ -1,0 +1,8 @@
+clear
+ls
+echo hello
+history -w ./history.txt
+ls
+cat history.txt
+python3 hel.py
+history -a ./history.txt

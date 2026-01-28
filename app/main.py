@@ -314,12 +314,14 @@ def completer(text, state):
 
 def display_matches(substitution, matches, longest_match_length):
     print()
-    print('  '.join(matches))  # Join with exactly 2 spaces
-    print(f"$ {readline.get_line_buffer()}", end='', flush=True)
+    print('  '.join(matches))
+    print(f"{Path.cwd()} $ {readline.get_line_buffer()}", end='', flush=True)
 
 readline.parse_and_bind("tab: complete")
 readline.set_completer(completer)
-readline.set_completion_display_matches_hook(display_matches)
+# Only set display hook if available (not available on Windows)
+if hasattr(readline, 'set_completion_display_matches_hook'):
+    readline.set_completion_display_matches_hook(display_matches)
 
 PIPELINE_BUILTINS = {
     "echo": builtin_echo,
@@ -343,7 +345,7 @@ def main():
     try:
         while True:
             try:
-                raw_input = input("$ ")
+                raw_input = input(f"{Path.cwd()} $ ")
                 history.append(raw_input)
                 user_input = shlex.split(raw_input)
             except EOFError:
